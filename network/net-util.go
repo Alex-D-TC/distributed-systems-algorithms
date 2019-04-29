@@ -6,7 +6,20 @@ import (
 	"net"
 )
 
-func listen(port int16, handler func(net.Conn), logger *log.Logger) {
+func SendMessage(hostname string, port int16, message []byte) error {
+
+	// Initiate the connection
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", hostname, port))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	// Send the data
+	return SendWithGuarantee(conn, message)
+}
+
+func Listen(port int16, handler func(net.Conn), logger *log.Logger) {
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -24,7 +37,7 @@ func listen(port int16, handler func(net.Conn), logger *log.Logger) {
 	}
 }
 
-func sendWithGuarantee(conn net.Conn, message []byte) error {
+func SendWithGuarantee(conn net.Conn, message []byte) error {
 
 	written := 0
 
