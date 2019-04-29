@@ -14,7 +14,7 @@ import (
 )
 
 // PerfectFailureDetector is a class which is responsible for analyzing the network and detecting possible failed nodes.
-// Other services can register to the onProcessCrashed event by submitting a channel to send the crashed process hostname to,
+// Other services can register to the onProcessCrashed event by submitting a channel to receive the crashed process hostname,
 //	through the AddOnProcessCrashedListener method
 // The assumptions made in this class are that each node in the network starts the PerfectFailureDetector on the same servicePort
 // 	and that each host in the hosts array starts a PerfectFailureDetector.
