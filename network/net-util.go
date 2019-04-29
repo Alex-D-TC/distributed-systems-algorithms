@@ -6,6 +6,8 @@ import (
 	"net"
 )
 
+// SendMessage sends a message to the hostname:port remote address
+// The message is guaranteed to be fully delivered, or fail with an error
 func SendMessage(hostname string, port uint16, message []byte) error {
 
 	// Initiate the connection
@@ -19,6 +21,8 @@ func SendMessage(hostname string, port uint16, message []byte) error {
 	return SendWithGuarantee(conn, message)
 }
 
+// Listen creates a listener on all interfaces on port port, with a custom connection handler
+// The logger is used to log listen failures
 func Listen(port uint16, handler func(net.Conn), logger *log.Logger) {
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
@@ -37,6 +41,8 @@ func Listen(port uint16, handler func(net.Conn), logger *log.Logger) {
 	}
 }
 
+// SendWithGuarantee sends a message on the connection conn
+// The message is guaranteed to be fully delivered, or the function returns with an error
 func SendWithGuarantee(conn net.Conn, message []byte) error {
 
 	written := 0
