@@ -20,12 +20,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println(env.GetHosts())
-
-	fmt.Println("Hello World!")
-
-	fmt.Println(env.GetPFDPort())
-
+	// Startup the system
 	fd := pfd.NewPerfectFailureDetector(env.GetPFDPort(), env.GetHosts(), 500*time.Millisecond)
 
 	processCrashedListener := make(chan string, 1)

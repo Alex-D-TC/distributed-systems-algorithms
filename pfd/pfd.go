@@ -56,17 +56,6 @@ func (pfd *PerfectFailureDetector) periodicCheck() {
 
 	for {
 
-		// Find out who died
-		for _, host := range pfd.hosts {
-			if !pfd.replied[host] && !pfd.dead[host] {
-				// Notify the process crashed listeners
-				pfd.dead[host] = true
-				for _, listener := range pfd.onProcessCrashListeners {
-					listener <- host
-				}
-			}
-		}
-
 		// Send the new pfd requests
 		pfd.replied = map[string]bool{}
 
@@ -87,10 +76,23 @@ func (pfd *PerfectFailureDetector) periodicCheck() {
 
 		// Wait for the replies
 		time.Sleep(pfd.delta)
+
+		// Find out who died
+		for _, host := range pfd.hosts {
+			if !pfd.replied[host] && !pfd.dead[host] {
+				// Notify the process crashed listeners
+				pfd.dead[host] = true
+				for _, listener := range pfd.onProcessCrashListeners {
+					listener <- host
+				}
+			}
+		}
 	}
 }
 
 func (pfd *PerfectFailureDetector) onHeartbeatRequest(host string) {
+
+	pfd.logger.Println("Received Heartbeat Request from host:", host)
 
 	reply := &protocol.HeartbeatReply{}
 
@@ -113,6 +115,9 @@ func (pfd *PerfectFailureDetector) onHeartbeatRequest(host string) {
 }
 
 func (pfd *PerfectFailureDetector) onHeartbeatReply(host string) {
+
+	pfd.logger.Println("Received Heartbeat Reply from host:", host)
+
 	// Mark the host as having replied
 	pfd.replied[host] = true
 }
@@ -137,13 +142,17 @@ func (pfd *PerfectFailureDetector) handleConnection(conn net.Conn) {
 		return
 	}
 
+	addr := conn.RemoteAddr().(*net.TCPAddr)
+
+	pfd.logger.Println("Received message from host:", addr)
+
 	// Handle the different message types
 	switch pfdMessage.HeartbeatType.(type) {
 	case *protocol.PFDMessage_Reply:
-		pfd.onHeartbeatReply(conn.RemoteAddr().String())
+		pfd.onHeartbeatReply(addr.IP.String())
 		break
 	case *protocol.PFDMessage_Request:
-		pfd.onHeartbeatRequest(conn.RemoteAddr().String())
+		pfd.onHeartbeatRequest(addr.IP.String())
 		break
 	}
 }
