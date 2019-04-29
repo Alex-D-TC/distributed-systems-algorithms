@@ -8,6 +8,7 @@ services:
     networks:
       dist-net:
         ipv4_address: 192.168.0.2
+
   node-2:
     image: 'distributed-systems'
     env_file:
@@ -15,6 +16,7 @@ services:
     networks:
       dist-net:
         ipv4_address: 192.168.0.3
+
   node-3:
     image: 'distributed-systems'
     env_file:
@@ -22,6 +24,7 @@ services:
     networks:
       dist-net:
         ipv4_address: 192.168.0.4
+      
   node-4:
     image: 'distributed-systems'
     env_file:

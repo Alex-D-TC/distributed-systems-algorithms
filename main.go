@@ -1,7 +1,8 @@
 package main
 
 import (
-	"fmt"
+	"log"
+	"os"
 	"time"
 
 	"github.com/alex-d-tc/distributed-systems-algorithms/pfd"
@@ -12,6 +13,8 @@ import (
 
 func main() {
 
+	logger := log.New(os.Stdout, "[Main]", log.Ldate|log.Ltime)
+
 	// Load the environment variables
 	godotenv.Load()
 
@@ -21,7 +24,7 @@ func main() {
 	}
 
 	// Startup the system
-	fd := pfd.NewPerfectFailureDetector(env.GetPFDPort(), env.GetHosts(), 500*time.Millisecond)
+	fd := pfd.NewPerfectFailureDetector(env.GetPFDPort(), env.GetHosts(), 3*time.Second, 3)
 
 	processCrashedListener := make(chan string, 1)
 
@@ -29,6 +32,6 @@ func main() {
 
 	for {
 		host := <-processCrashedListener
-		fmt.Println("Host crashed: ", host)
+		logger.Println("Host crashed: ", host)
 	}
 }

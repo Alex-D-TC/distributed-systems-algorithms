@@ -1,6 +1,7 @@
 package pfd
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
@@ -18,14 +19,19 @@ import (
 // The assumptions made in this class are that each node in the network starts the PerfectFailureDetector on the same servicePort
 // 	and that each host in the hosts array starts a PerfectFailureDetector.
 type PerfectFailureDetector struct {
-	servicePort        uint16
-	hosts              []string
-	deadMapAccessToken chan bool
+	servicePort uint16
+	hosts       []string
 
 	// PFD Main functionality
-	dead    map[string]bool
-	replied map[string]bool
-	delta   time.Duration
+	dead           map[string]bool
+	replyFailed    map[string]uint8
+	replied        map[string]bool
+	delta          time.Duration
+	maxReplyFailed uint8
+
+	// PFD Goroutine sync
+	deadMapAccessToken    chan bool
+	repliedMapAccessToken chan bool
 
 	// Outgoing event listeners
 	onProcessCrashListeners []chan<- string
@@ -37,19 +43,23 @@ type PerfectFailureDetector struct {
 // NewPerfectFailureDetector creates a new perfect failure detector
 // The PerfectFailureDetector class starts two goroutines. One performs periodic heartbeat calls, and another sets up a server
 // 	to listen for incoming heartbeat requests
-func NewPerfectFailureDetector(port uint16, hosts []string, delta time.Duration) *PerfectFailureDetector {
+func NewPerfectFailureDetector(port uint16, hosts []string, delta time.Duration, maxReplyFailed uint8) *PerfectFailureDetector {
 
 	pfd := &PerfectFailureDetector{
-		servicePort:        port,
-		hosts:              hosts,
-		delta:              delta,
-		deadMapAccessToken: make(chan bool, 1),
-		dead:               map[string]bool{},
-		replied:            map[string]bool{},
-		logger:             log.New(os.Stdout, "[PFD]", log.Ldate|log.Ltime),
+		servicePort:           port,
+		hosts:                 hosts,
+		delta:                 delta,
+		deadMapAccessToken:    make(chan bool, 1),
+		repliedMapAccessToken: make(chan bool, 1),
+		dead:                  map[string]bool{},
+		replied:               map[string]bool{},
+		replyFailed:           map[string]uint8{},
+		maxReplyFailed:        maxReplyFailed,
+		logger:                log.New(os.Stdout, "[PFD]", log.Ldate|log.Ltime),
 	}
 
 	pfd.deadMapAccessToken <- true
+	pfd.repliedMapAccessToken <- true
 
 	// Start listening routine
 	go network.Listen(port, pfd.handleConnection, pfd.logger)
@@ -67,8 +77,6 @@ func (pfd *PerfectFailureDetector) AddOnProcessCrashedListener(listener chan<- s
 	pfd.onProcessCrashListeners = append(pfd.onProcessCrashListeners, listener)
 
 	// Send all processes currently known to be crashed to the listener
-	// Lock access to the dead map through a go channel
-
 	<-pfd.deadMapAccessToken
 	for host, dead := range pfd.dead {
 		if dead {
@@ -83,38 +91,69 @@ func (pfd *PerfectFailureDetector) periodicCheck() {
 	for {
 
 		// Send the new pfd requests
-		pfd.replied = map[string]bool{}
-
-		pfdRequestMessage := &protocol.PFDMessage{
-			HeartbeatType: &protocol.PFDMessage_Request{
-				Request: &protocol.HeartbeatRequest{},
-			},
-		}
-
-		rawPfdMessage, err := proto.Marshal(pfdRequestMessage)
-		if err != nil {
-			pfd.logger.Panic(err.Error())
-		}
-
-		for _, host := range pfd.hosts {
-			network.SendMessage(host, pfd.servicePort, rawPfdMessage)
-		}
+		pfd.pingLivingHosts()
 
 		// Wait for the replies
 		time.Sleep(pfd.delta)
 
 		// Find out who died
 		for _, host := range pfd.hosts {
-			if !pfd.replied[host] && !pfd.dead[host] {
 
-				// Notify the process crashed listeners
-				<-pfd.deadMapAccessToken
-				pfd.dead[host] = true
-				pfd.deadMapAccessToken <- true
+			// Skip dead hosts
+			if pfd.dead[host] {
+				continue
+			}
 
-				for _, listener := range pfd.onProcessCrashListeners {
-					listener <- host
+			<-pfd.repliedMapAccessToken
+			hostReplied := pfd.replied[host]
+			pfd.repliedMapAccessToken <- true
+
+			if !hostReplied {
+
+				pfd.replyFailed[host]++
+				pfd.logger.Println(fmt.Sprintf("Reply failure count of host %s: %d", host, pfd.replyFailed[host]))
+
+				if pfd.replyFailed[host] >= pfd.maxReplyFailed {
+
+					// Notify the process crashed listeners
+					<-pfd.deadMapAccessToken
+					pfd.dead[host] = true
+					pfd.deadMapAccessToken <- true
+
+					for _, listener := range pfd.onProcessCrashListeners {
+						listener <- host
+					}
 				}
+			} else {
+				// Reset the counter if the host has replied
+				pfd.replyFailed[host] = 0
+			}
+		}
+	}
+}
+
+func (pfd *PerfectFailureDetector) pingLivingHosts() {
+
+	<-pfd.repliedMapAccessToken
+	pfd.replied = map[string]bool{}
+	pfd.repliedMapAccessToken <- true
+
+	pfdRequestMessage := &protocol.PFDMessage{
+		HeartbeatType: &protocol.PFDMessage_Request{
+			Request: &protocol.HeartbeatRequest{},
+		},
+	}
+
+	rawPfdMessage, err := proto.Marshal(pfdRequestMessage)
+	if err != nil {
+		pfd.logger.Panic(err.Error())
+	}
+
+	for _, host := range pfd.hosts {
+		if !pfd.dead[host] {
+			err = network.SendMessage(host, pfd.servicePort, rawPfdMessage)
+			if err != nil {
+				pfd.logger.Println(err.Error())
 			}
 		}
 	}
@@ -140,7 +179,7 @@ func (pfd *PerfectFailureDetector) onHeartbeatRequest(host string) {
 	// Reply with a heartbeat reply
 	err = network.SendMessage(host, pfd.servicePort, raw)
 	if err != nil {
-		pfd.logger.Panic(err.Error())
+		pfd.logger.Println(err.Error())
 	}
 }
 
@@ -149,7 +188,9 @@ func (pfd *PerfectFailureDetector) onHeartbeatReply(host string) {
 	pfd.logger.Println("Received Heartbeat Reply from host:", host)
 
 	// Mark the host as having replied
+	<-pfd.repliedMapAccessToken
 	pfd.replied[host] = true
+	pfd.repliedMapAccessToken <- true
 }
 
 func (pfd *PerfectFailureDetector) handleConnection(conn net.Conn) {
