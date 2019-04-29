@@ -1,0 +1,17 @@
+syntax="proto3";
+package protocol;
+
+message HeartbeatRequest {
+
+}
+
+message HeartbeatReply {
+
+}
+
+message PFDMessage {
+    oneof heartbeat_type {
+        HeartbeatRequest request = 1;
+        HeartbeatReply reply = 2;
+    }
+}

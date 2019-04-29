@@ -1,6 +1,9 @@
 reated by https://www.gitignore.io/api/go,vim,executable,visualstudiocode
 # Edit at https://www.gitignore.io/?templates=go,vim,executable,visualstudiocode
 
+### Generated proto files ###
+*.pb.go
+
 ### Executable ###
 *.app
 *.bat
