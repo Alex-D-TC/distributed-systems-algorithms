@@ -12,9 +12,15 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
+// PerfectFailureDetector is a class which is responsible for analyzing the network and detecting possible failed nodes.
+// Other services can register to the onProcessCrashed event by submitting a channel to send the crashed process hostname to,
+//	through the AddOnProcessCrashedListener method
+// The assumptions made in this class are that each node in the network starts the PerfectFailureDetector on the same servicePort
+// 	and that each host in the hosts array starts a PerfectFailureDetector.
 type PerfectFailureDetector struct {
-	servicePort uint16
-	hosts       []string
+	servicePort        uint16
+	hosts              []string
+	deadMapAccessToken chan bool
 
 	// PFD Main functionality
 	dead    map[string]bool
@@ -28,28 +34,48 @@ type PerfectFailureDetector struct {
 	logger *log.Logger
 }
 
+// NewPerfectFailureDetector creates a new perfect failure detector
+// The PerfectFailureDetector class starts two goroutines. One performs periodic heartbeat calls, and another sets up a server
+// 	to listen for incoming heartbeat requests
 func NewPerfectFailureDetector(port uint16, hosts []string, delta time.Duration) *PerfectFailureDetector {
 
 	pfd := &PerfectFailureDetector{
-		servicePort: port,
-		hosts:       hosts,
-		delta:       delta,
-		dead:        map[string]bool{},
-		replied:     map[string]bool{},
-		logger:      log.New(os.Stdout, "[PFD]", log.Ldate|log.Ltime),
+		servicePort:        port,
+		hosts:              hosts,
+		delta:              delta,
+		deadMapAccessToken: make(chan bool, 1),
+		dead:               map[string]bool{},
+		replied:            map[string]bool{},
+		logger:             log.New(os.Stdout, "[PFD]", log.Ldate|log.Ltime),
 	}
 
-	// Start the timer routine
-	go pfd.periodicCheck()
+	pfd.deadMapAccessToken <- true
 
 	// Start listening routine
 	go network.Listen(port, pfd.handleConnection, pfd.logger)
 
+	// Start the timer routine
+	go pfd.periodicCheck()
+
 	return pfd
 }
 
+// AddOnProcessCrashedListener adds a listener to the list of ProcessCrashed event listeners
+// Each listener is a channel which will receive the hostname of the crashed process
+// The listener will receive one hostname for each process that crashed
 func (pfd *PerfectFailureDetector) AddOnProcessCrashedListener(listener chan<- string) {
 	pfd.onProcessCrashListeners = append(pfd.onProcessCrashListeners, listener)
+
+	// Send all processes currently known to be crashed to the listener
+	// Lock access to the dead map through a go channel
+
+	<-pfd.deadMapAccessToken
+	for host, dead := range pfd.dead {
+		if dead {
+			listener <- host
+		}
+	}
+	pfd.deadMapAccessToken <- true
 }
 
 func (pfd *PerfectFailureDetector) periodicCheck() {
@@ -70,8 +96,8 @@ func (pfd *PerfectFailureDetector) periodicCheck() {
 			pfd.logger.Panic(err.Error())
 		}
 
-		for i := 0; i < len(pfd.hosts); i++ {
-			network.SendMessage(pfd.hosts[i], pfd.servicePort, rawPfdMessage)
+		for _, host := range pfd.hosts {
+			network.SendMessage(host, pfd.servicePort, rawPfdMessage)
 		}
 
 		// Wait for the replies
@@ -80,8 +106,12 @@ func (pfd *PerfectFailureDetector) periodicCheck() {
 		// Find out who died
 		for _, host := range pfd.hosts {
 			if !pfd.replied[host] && !pfd.dead[host] {
+
 				// Notify the process crashed listeners
+				<-pfd.deadMapAccessToken
 				pfd.dead[host] = true
+				pfd.deadMapAccessToken <- true
+
 				for _, listener := range pfd.onProcessCrashListeners {
 					listener <- host
 				}
@@ -143,8 +173,6 @@ func (pfd *PerfectFailureDetector) handleConnection(conn net.Conn) {
 	}
 
 	addr := conn.RemoteAddr().(*net.TCPAddr)
-
-	pfd.logger.Println("Received message from host:", addr)
 
 	// Handle the different message types
 	switch pfdMessage.HeartbeatType.(type) {
