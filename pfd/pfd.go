@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/alex-d-tc/distributed-systems-algorithms/network"
 	"github.com/alex-d-tc/distributed-systems-algorithms/protocol"
+	"github.com/alex-d-tc/distributed-systems-algorithms/util"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -62,7 +62,7 @@ func NewPerfectFailureDetector(port uint16, hosts []string, delta time.Duration,
 	pfd.repliedMapAccessToken <- true
 
 	// Start listening routine
-	go network.Listen(port, pfd.handleConnection, pfd.logger)
+	go util.Listen(port, pfd.handleConnection, pfd.logger)
 
 	// Start the timer routine
 	go pfd.periodicCheck()
@@ -151,7 +151,7 @@ func (pfd *PerfectFailureDetector) pingLivingHosts() {
 
 	for _, host := range pfd.hosts {
 		if !pfd.dead[host] {
-			err = network.SendMessage(host, pfd.servicePort, rawPfdMessage)
+			err = util.SendMessage(host, pfd.servicePort, rawPfdMessage)
 			if err != nil {
 				pfd.logger.Println(err.Error())
 			}
@@ -177,7 +177,7 @@ func (pfd *PerfectFailureDetector) onHeartbeatRequest(host string) {
 	}
 
 	// Reply with a heartbeat reply
-	err = network.SendMessage(host, pfd.servicePort, raw)
+	err = util.SendMessage(host, pfd.servicePort, raw)
 	if err != nil {
 		pfd.logger.Println(err.Error())
 	}

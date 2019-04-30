@@ -5,9 +5,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/alex-d-tc/distributed-systems-algorithms/pfd"
-
 	"github.com/alex-d-tc/distributed-systems-algorithms/environment"
+	"github.com/alex-d-tc/distributed-systems-algorithms/pfd"
 	"github.com/joho/godotenv"
 )
 

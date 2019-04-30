@@ -1,4 +1,4 @@
-package network
+package util
 
 import (
 	"fmt"
@@ -18,14 +18,14 @@ func SendMessage(hostname string, port uint16, message []byte) error {
 	defer conn.Close()
 
 	// Send the data
-	return SendWithGuarantee(conn, message)
+	return WriteWithGuarantee(conn, message)
 }
 
 // Listen creates a listener on all interfaces on port port, with a custom connection handler
 // The logger is used to log listen failures
 func Listen(port uint16, handler func(net.Conn), logger *log.Logger) {
 
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
 		logger.Printf("Listen init error: %s", err.Error())
 		return
@@ -39,22 +39,4 @@ func Listen(port uint16, handler func(net.Conn), logger *log.Logger) {
 
 		go handler(conn)
 	}
-}
-
-// SendWithGuarantee sends a message on the connection conn
-// The message is guaranteed to be fully delivered, or the function returns with an error
-func SendWithGuarantee(conn net.Conn, message []byte) error {
-
-	written := 0
-
-	for written < len(message) {
-		wrote, err := conn.Write(message[written:])
-		if err != nil {
-			return err
-		}
-
-		written += wrote
-	}
-
-	return nil
 }

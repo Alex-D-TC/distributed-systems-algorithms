@@ -9,11 +9,12 @@ import (
 )
 
 type NetworkEnvironment struct {
-	hosts    []string
-	bebPort  uint16
-	onarPort uint16
-	pfdPort  uint16
-	ucPort   uint16
+	hosts       []string
+	bebPort     uint16
+	onarPort    uint16
+	pfdPort     uint16
+	ucPort      uint16
+	controlPort uint16
 
 	logger *log.Logger
 }
@@ -24,6 +25,11 @@ func NewNetworkEnvironment() (*NetworkEnvironment, error) {
 	errs := []string{}
 
 	hosts := strings.Split(os.Getenv("HOSTS"), ";")
+
+	controlPort, err := strconv.Atoi(os.Getenv("CTRL_PORT"))
+	if err != nil {
+		errs = append(errs, err.Error())
+	}
 
 	bebPort, err := strconv.Atoi(os.Getenv("BEB_PORT"))
 	if err != nil {
@@ -50,13 +56,18 @@ func NewNetworkEnvironment() (*NetworkEnvironment, error) {
 	}
 
 	return &NetworkEnvironment{
-		hosts:    hosts,
-		bebPort:  uint16(bebPort),
-		onarPort: uint16(onarPort),
-		pfdPort:  uint16(pfdPort),
-		ucPort:   uint16(ucPort),
-		logger:   log.New(os.Stdout, "[Network Manager]", log.Ltime|log.Ldate),
+		hosts:       hosts,
+		bebPort:     uint16(bebPort),
+		onarPort:    uint16(onarPort),
+		pfdPort:     uint16(pfdPort),
+		ucPort:      uint16(ucPort),
+		controlPort: uint16(controlPort),
+		logger:      log.New(os.Stdout, "[Network Manager]", log.Ltime|log.Ldate),
 	}, nil
+}
+
+func (env *NetworkEnvironment) GetControlPort() uint16 {
+	return env.controlPort
 }
 
 func (env *NetworkEnvironment) GetHosts() []string {

@@ -8,6 +8,8 @@ services:
     networks:
       dist-net:
         ipv4_address: 192.168.0.2
+    ports:
+      - "41000:40000"
 
   node-2:
     image: 'distributed-systems'
@@ -16,6 +18,8 @@ services:
     networks:
       dist-net:
         ipv4_address: 192.168.0.3
+    ports:
+      - "41001:40000"
 
   node-3:
     image: 'distributed-systems'
@@ -24,6 +28,8 @@ services:
     networks:
       dist-net:
         ipv4_address: 192.168.0.4
+    ports:
+      - "41002:40000"
       
   node-4:
     image: 'distributed-systems'
@@ -32,6 +38,8 @@ services:
     networks:
       dist-net:
         ipv4_address: 192.168.0.5
+    ports:
+      - "41003:40000"
 
 networks: 
   dist-net:
