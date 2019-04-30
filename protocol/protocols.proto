@@ -15,3 +15,7 @@ message PFDMessage {
         HeartbeatReply reply = 2;
     }
 }
+
+message BEBMessage {
+    bytes payload = 1;
+}

@@ -30,11 +30,10 @@ type PerfectFailureDetector struct {
 	maxReplyFailed uint8
 
 	// PFD Goroutine sync
-	deadMapAccessToken    chan bool
 	repliedMapAccessToken chan bool
 
 	// Outgoing event listeners
-	onProcessCrashListeners []chan<- string
+	processCrashedManager onProcessCrashedEventManager
 
 	// Logging
 	logger *log.Logger
@@ -49,16 +48,15 @@ func NewPerfectFailureDetector(port uint16, hosts []string, delta time.Duration,
 		servicePort:           port,
 		hosts:                 hosts,
 		delta:                 delta,
-		deadMapAccessToken:    make(chan bool, 1),
 		repliedMapAccessToken: make(chan bool, 1),
 		dead:                  map[string]bool{},
 		replied:               map[string]bool{},
 		replyFailed:           map[string]uint8{},
+		processCrashedManager: newOnProcessCrashedEventManager(),
 		maxReplyFailed:        maxReplyFailed,
 		logger:                log.New(os.Stdout, "[PFD]", log.Ldate|log.Ltime),
 	}
 
-	pfd.deadMapAccessToken <- true
 	pfd.repliedMapAccessToken <- true
 
 	// Start listening routine
@@ -74,16 +72,7 @@ func NewPerfectFailureDetector(port uint16, hosts []string, delta time.Duration,
 // Each listener is a channel which will receive the hostname of the crashed process
 // The listener will receive one hostname for each process that crashed
 func (pfd *PerfectFailureDetector) AddOnProcessCrashedListener(listener chan<- string) {
-	pfd.onProcessCrashListeners = append(pfd.onProcessCrashListeners, listener)
-
-	// Send all processes currently known to be crashed to the listener
-	<-pfd.deadMapAccessToken
-	for host, dead := range pfd.dead {
-		if dead {
-			listener <- host
-		}
-	}
-	pfd.deadMapAccessToken <- true
+	pfd.processCrashedManager.AddListener(listener)
 }
 
 func (pfd *PerfectFailureDetector) periodicCheck() {
@@ -116,13 +105,9 @@ func (pfd *PerfectFailureDetector) periodicCheck() {
 				if pfd.replyFailed[host] >= pfd.maxReplyFailed {
 
 					// Notify the process crashed listeners
-					<-pfd.deadMapAccessToken
 					pfd.dead[host] = true
-					pfd.deadMapAccessToken <- true
 
-					for _, listener := range pfd.onProcessCrashListeners {
-						listener <- host
-					}
+					pfd.processCrashedManager.Submit(host)
 				}
 			} else {
 				// Reset the counter if the host has replied
