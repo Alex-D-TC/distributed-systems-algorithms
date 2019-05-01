@@ -7,4 +7,3 @@ COPY . /dist
 RUN go build
 
 CMD ./distributed-systems-algorithms
-

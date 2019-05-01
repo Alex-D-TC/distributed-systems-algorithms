@@ -12,24 +12,31 @@ import (
 	"github.com/alex-d-tc/distributed-systems-algorithms/util"
 )
 
+type BestEffortBroadcastMessage struct {
+	SourceHost string
+	Message    []byte
+}
+
 type BestEffortBroadcast struct {
 	hosts []string
 
 	// BEB Main Functionality
-	bebServicePort      uint16
-	bebDeliverListeners []chan<- []byte
+	bebServicePort uint16
+
+	// Outgoing event handlers
+	deliverManager onDeliverManager
 
 	// Logging
 	logger *log.Logger
 }
 
-func NewBestEffortBroadcast(hosts []string, bebServicePort uint16) *BestEffortBroadcast {
+func NewBestEffortBroadcast(bebServicePort uint16, hosts []string) *BestEffortBroadcast {
 
 	beb := &BestEffortBroadcast{
-		hosts:               hosts,
-		bebServicePort:      bebServicePort,
-		bebDeliverListeners: []chan<- []byte{},
-		logger:              log.New(os.Stdout, "[BEB]", log.Ldate|log.Ltime),
+		hosts:          hosts,
+		bebServicePort: bebServicePort,
+		logger:         log.New(os.Stdout, "[BEB]", log.Ldate|log.Ltime),
+		deliverManager: newOnDeliverManager(),
 	}
 
 	// Run the server routine
@@ -38,8 +45,8 @@ func NewBestEffortBroadcast(hosts []string, bebServicePort uint16) *BestEffortBr
 	return beb
 }
 
-func (beb *BestEffortBroadcast) RegisterOnDeliverHandler(listener chan<- []byte) {
-	beb.bebDeliverListeners = append(beb.bebDeliverListeners, listener)
+func (beb *BestEffortBroadcast) AddOnDeliverListener() <-chan BestEffortBroadcastMessage {
+	return beb.deliverManager.AddListener()
 }
 
 func (beb *BestEffortBroadcast) Broadcast(message []byte) {
@@ -68,11 +75,17 @@ func (beb *BestEffortBroadcast) handleConn(conn net.Conn) {
 		return
 	}
 
-	beb.handleMessage(bebMessage)
+	addr := conn.RemoteAddr().(*net.TCPAddr)
+
+	beb.handleMessage(addr.String(), bebMessage)
 }
 
-func (beb *BestEffortBroadcast) handleMessage(bebMessage *protocol.BEBMessage) {
-	for _, listener := range beb.bebDeliverListeners {
-		listener <- bebMessage.Payload
+func (beb *BestEffortBroadcast) handleMessage(sourceHost string, bebMessage *protocol.BEBMessage) {
+
+	msg := BestEffortBroadcastMessage{
+		SourceHost: sourceHost,
+		Message:    bebMessage.GetPayload(),
 	}
+
+	beb.deliverManager.Submit(msg)
 }

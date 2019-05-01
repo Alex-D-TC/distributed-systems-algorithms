@@ -1,0 +1,25 @@
+syntax="proto3";
+package protocol;
+
+message Empty {
+
+}
+
+message Error {
+    string error = 1;
+}
+
+message BEBRequest {
+    bytes message = 1;
+}
+
+message BEBConfirm {
+    oneof result {
+        Error error = 1;
+        bool ok = 2;
+    }
+}
+
+service ControlService {
+    rpc BEBBroadcast(BEBRequest) returns (BEBConfirm);
+}

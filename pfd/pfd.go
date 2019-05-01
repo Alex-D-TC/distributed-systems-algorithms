@@ -71,8 +71,8 @@ func NewPerfectFailureDetector(port uint16, hosts []string, delta time.Duration,
 // AddOnProcessCrashedListener adds a listener to the list of ProcessCrashed event listeners
 // Each listener is a channel which will receive the hostname of the crashed process
 // The listener will receive one hostname for each process that crashed
-func (pfd *PerfectFailureDetector) AddOnProcessCrashedListener(listener chan<- string) {
-	pfd.processCrashedManager.AddListener(listener)
+func (pfd *PerfectFailureDetector) AddOnProcessCrashedListener() <-chan string {
+	return pfd.processCrashedManager.AddListener()
 }
 
 func (pfd *PerfectFailureDetector) periodicCheck() {

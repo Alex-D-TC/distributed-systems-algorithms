@@ -1,8 +1,12 @@
 version: '3'
 
 services:
+
   node-1:
     image: 'distributed-systems'
+    build:
+      context: ../../
+      dockerfile: ./docker/node/Dockerfile
     env_file:
       - ./.env
     networks:
@@ -40,6 +44,15 @@ services:
         ipv4_address: 192.168.0.5
     ports:
       - "41003:40000"
+
+  cnc:
+    image: 'cnc'
+    build:
+      context: ../../
+      dockerfile: ./docker/cnc/Dockerfile
+    networks:
+      dist-net:
+        ipv4_address: 192.168.0.6
 
 networks: 
   dist-net:

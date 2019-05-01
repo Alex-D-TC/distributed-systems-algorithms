@@ -34,8 +34,10 @@ func newOnProcessCrashedEventManager() onProcessCrashedEventManager {
 	return manager
 }
 
-func (manager onProcessCrashedEventManager) AddListener(listener chan<- string) {
+func (manager onProcessCrashedEventManager) AddListener() <-chan string {
+	listener := make(chan string, 1)
 	manager.internalHandler.Submit(listener)
+	return listener
 }
 
 func (manager onProcessCrashedEventManager) Submit(event string) {
