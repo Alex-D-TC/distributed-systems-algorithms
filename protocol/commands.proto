@@ -22,4 +22,5 @@ message BEBConfirm {
 
 service ControlService {
     rpc BEBBroadcast(BEBRequest) returns (BEBConfirm);
+    rpc MarcoPolo(Empty) returns (Empty);
 }

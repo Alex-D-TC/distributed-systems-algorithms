@@ -11,9 +11,9 @@ services:
       - ./.env
     networks:
       dist-net:
-        ipv4_address: 192.168.0.2
+        ipv4_address: 10.0.0.2
     ports:
-      - "41000:40000"
+      - "0.0.0.0:41000:40000"
 
   node-2:
     image: 'distributed-systems'
@@ -21,9 +21,9 @@ services:
       - ./.env
     networks:
       dist-net:
-        ipv4_address: 192.168.0.3
+        ipv4_address: 10.0.0.3
     ports:
-      - "41001:40000"
+      - "0.0.0.0:41001:40000"
 
   node-3:
     image: 'distributed-systems'
@@ -31,9 +31,9 @@ services:
       - ./.env
     networks:
       dist-net:
-        ipv4_address: 192.168.0.4
+        ipv4_address: 10.0.0.4
     ports:
-      - "41002:40000"
+      - "0.0.0.0:41002:40000"
       
   node-4:
     image: 'distributed-systems'
@@ -41,9 +41,9 @@ services:
       - ./.env
     networks:
       dist-net:
-        ipv4_address: 192.168.0.5
+        ipv4_address: 10.0.0.5
     ports:
-      - "41003:40000"
+      - "0.0.0.0:41003:40000"
 
   cnc:
     image: 'cnc'
@@ -52,12 +52,12 @@ services:
       dockerfile: ./docker/cnc/Dockerfile
     networks:
       dist-net:
-        ipv4_address: 192.168.0.6
+        ipv4_address: 10.0.0.6
 
-networks: 
+networks:
   dist-net:
     driver: bridge
     ipam:
       driver: default
       config:
-        - subnet: "192.168.0.0/16"
+        - subnet: "10.0.0.0/16"

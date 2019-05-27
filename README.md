@@ -11,4 +11,3 @@ Spin up a testnet
 Go to the tesnet folder and run:
 
 docker-compose up
-

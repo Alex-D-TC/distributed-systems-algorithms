@@ -29,6 +29,13 @@ func main() {
 		panic(err)
 	}
 
+	logger.Println(env.GetBebPort())
+	logger.Println(env.GetControlPort())
+	logger.Println(env.GetHosts())
+	logger.Println(env.GetONARPort())
+	logger.Println(env.GetPFDPort())
+	logger.Println(env.GetUCPort())
+	
 	// Startup the system
 	fd := pfd.NewPerfectFailureDetector(env.GetPFDPort(), env.GetHosts(), 3*time.Second, 3)
 
