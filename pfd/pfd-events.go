@@ -49,8 +49,8 @@ func (manager onProcessCrashedEventManager) handleEvent(ev interface{}) {
 	case string:
 		manager.handleSubmit(ev.(string))
 		break
-	case chan<- string:
-		manager.handleAddListener(ev.(chan<- string))
+	case chan string:
+		manager.handleAddListener(ev.(chan string))
 		break
 	default:
 		manager.logger.Println(fmt.Sprintf("Invalid event type submitted. Type was %T", ev))

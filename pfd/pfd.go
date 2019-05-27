@@ -82,6 +82,8 @@ func (pfd *PerfectFailureDetector) periodicCheck() {
 		// Send the new pfd requests
 		pfd.pingLivingHosts()
 
+		pfd.logger.Println("Awaiting replies from living hosts")
+
 		// Wait for the replies
 		time.Sleep(pfd.delta)
 

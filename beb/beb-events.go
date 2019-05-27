@@ -43,8 +43,8 @@ func (manager onDeliverManager) Submit(message BestEffortBroadcastMessage) {
 
 func (manager onDeliverManager) handleEvent(ev interface{}) {
 	switch ev.(type) {
-	case chan<- BestEffortBroadcastMessage:
-		manager.handleAddListener(ev.(chan<- BestEffortBroadcastMessage))
+	case chan BestEffortBroadcastMessage:
+		manager.handleAddListener(ev.(chan BestEffortBroadcastMessage))
 		break
 	case BestEffortBroadcastMessage:
 		manager.handleOnDeliver(ev.(BestEffortBroadcastMessage))
