@@ -45,15 +45,6 @@ services:
     ports:
       - "0.0.0.0:41003:40000"
 
-  cnc:
-    image: 'cnc'
-    build:
-      context: ../../
-      dockerfile: ./docker/cnc/Dockerfile
-    networks:
-      dist-net:
-        ipv4_address: 10.0.0.6
-
 networks:
   dist-net:
     driver: bridge
