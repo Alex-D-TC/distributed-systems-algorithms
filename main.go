@@ -47,8 +47,9 @@ func main() {
 
 	// Wait forever for now
 	for {
+		logger.Println("Awaiting broadcasts")
 		broadcast := <-bebListener
-		fmt.Println("Received broadcast: ", broadcast)
+		logger.Println("Received broadcast: ", broadcast)
 	}
 }
 

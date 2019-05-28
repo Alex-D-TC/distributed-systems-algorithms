@@ -18,9 +18,9 @@ type onDeliverManager struct {
 	logger *log.Logger
 }
 
-func newOnDeliverManager() onDeliverManager {
+func newOnDeliverManager() *onDeliverManager {
 
-	manager := onDeliverManager{
+	manager := &onDeliverManager{
 		logger: log.New(os.Stdout, "[BebOnDeliverManager]", log.Ldate|log.Ltime),
 	}
 
@@ -29,7 +29,7 @@ func newOnDeliverManager() onDeliverManager {
 	return manager
 }
 
-func (manager onDeliverManager) AddListener() <-chan BestEffortBroadcastMessage {
+func (manager *onDeliverManager) AddListener() <-chan BestEffortBroadcastMessage {
 
 	listener := make(chan BestEffortBroadcastMessage, 1)
 	manager.internalHandler.Submit(listener)
@@ -37,13 +37,14 @@ func (manager onDeliverManager) AddListener() <-chan BestEffortBroadcastMessage 
 	return listener
 }
 
-func (manager onDeliverManager) Submit(message BestEffortBroadcastMessage) {
+func (manager *onDeliverManager) Submit(message BestEffortBroadcastMessage) {
 	manager.internalHandler.Submit(message)
 }
 
-func (manager onDeliverManager) handleEvent(ev interface{}) {
+func (manager *onDeliverManager) handleEvent(ev interface{}) {
 	switch ev.(type) {
 	case chan BestEffortBroadcastMessage:
+		manager.logger.Println("Added listener")
 		manager.handleAddListener(ev.(chan BestEffortBroadcastMessage))
 		break
 	case BestEffortBroadcastMessage:
@@ -54,11 +55,12 @@ func (manager onDeliverManager) handleEvent(ev interface{}) {
 	}
 }
 
-func (manager onDeliverManager) handleAddListener(listener chan<- BestEffortBroadcastMessage) {
+func (manager *onDeliverManager) handleAddListener(listener chan<- BestEffortBroadcastMessage) {
 	manager.listeners = append(manager.listeners, listener)
 }
 
-func (manager onDeliverManager) handleOnDeliver(message BestEffortBroadcastMessage) {
+func (manager *onDeliverManager) handleOnDeliver(message BestEffortBroadcastMessage) {
+	manager.logger.Println(fmt.Sprintf("Sending event to %d listeners", len(manager.listeners)))
 	for _, listener := range manager.listeners {
 		listener <- message
 	}

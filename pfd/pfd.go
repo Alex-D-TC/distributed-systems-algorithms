@@ -33,7 +33,7 @@ type PerfectFailureDetector struct {
 	repliedMapAccessToken chan bool
 
 	// Outgoing event listeners
-	processCrashedManager onProcessCrashedEventManager
+	processCrashedManager *onProcessCrashedEventManager
 
 	// Logging
 	logger *log.Logger

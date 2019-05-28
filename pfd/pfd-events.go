@@ -21,9 +21,9 @@ type onProcessCrashedEventManager struct {
 	logger *log.Logger
 }
 
-func newOnProcessCrashedEventManager() onProcessCrashedEventManager {
+func newOnProcessCrashedEventManager() *onProcessCrashedEventManager {
 
-	manager := onProcessCrashedEventManager{
+	manager := &onProcessCrashedEventManager{
 		listeners: []chan<- string{},
 		deadHosts: []string{},
 		logger:    log.New(os.Stdout, "[ProcessCrashedEventHandler]", log.Ldate|log.Ltime),
@@ -34,17 +34,17 @@ func newOnProcessCrashedEventManager() onProcessCrashedEventManager {
 	return manager
 }
 
-func (manager onProcessCrashedEventManager) AddListener() <-chan string {
+func (manager *onProcessCrashedEventManager) AddListener() <-chan string {
 	listener := make(chan string, 1)
 	manager.internalHandler.Submit(listener)
 	return listener
 }
 
-func (manager onProcessCrashedEventManager) Submit(event string) {
+func (manager *onProcessCrashedEventManager) Submit(event string) {
 	manager.internalHandler.Submit(event)
 }
 
-func (manager onProcessCrashedEventManager) handleEvent(ev interface{}) {
+func (manager *onProcessCrashedEventManager) handleEvent(ev interface{}) {
 	switch ev.(type) {
 	case string:
 		manager.handleSubmit(ev.(string))
@@ -57,14 +57,14 @@ func (manager onProcessCrashedEventManager) handleEvent(ev interface{}) {
 	}
 }
 
-func (manager onProcessCrashedEventManager) handleAddListener(listener chan<- string) {
+func (manager *onProcessCrashedEventManager) handleAddListener(listener chan<- string) {
 	manager.listeners = append(manager.listeners, listener)
 	for _, host := range manager.deadHosts {
 		listener <- host
 	}
 }
 
-func (manager onProcessCrashedEventManager) handleSubmit(event string) {
+func (manager *onProcessCrashedEventManager) handleSubmit(event string) {
 	manager.deadHosts = append(manager.deadHosts, event)
 	for _, listener := range manager.listeners {
 		listener <- event

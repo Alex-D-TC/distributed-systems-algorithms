@@ -26,6 +26,7 @@ func NewCommandService(beb *beb.BestEffortBroadcast, pfd *pfd.PerfectFailureDete
 }
 
 func (cm *CommandService) BEBBroadcast(ctx context.Context, req *protocol.BEBRequest) (*protocol.BEBConfirm, error) {
+	cm.log.Println("Received BEBBroadcast call", req)
 	cm.beb.Broadcast(req.GetMessage())
 	return &protocol.BEBConfirm{
 		Result: &protocol.BEBConfirm_Ok{Ok: true},

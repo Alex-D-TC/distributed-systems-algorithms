@@ -24,7 +24,7 @@ type BestEffortBroadcast struct {
 	bebServicePort uint16
 
 	// Outgoing event handlers
-	deliverManager onDeliverManager
+	deliverManager *onDeliverManager
 
 	// Logging
 	logger *log.Logger
@@ -50,8 +50,20 @@ func (beb *BestEffortBroadcast) AddOnDeliverListener() <-chan BestEffortBroadcas
 }
 
 func (beb *BestEffortBroadcast) Broadcast(message []byte) {
+	
+	beb.logger.Println("Sending broadcast message ", message)
+
+	bebMessage := &protocol.BEBMessage{
+		Payload: message,
+	}
+
+	rawBebMessage, err := proto.Marshal(bebMessage)
+	if err != nil {
+		beb.logger.Println(err)
+	}
+
 	for _, host := range beb.hosts {
-		err := util.SendMessage(host, beb.bebServicePort, message)
+		err := util.SendMessage(host, beb.bebServicePort, rawBebMessage)
 		if err != nil {
 			beb.logger.Println(err.Error())
 		}
@@ -60,6 +72,8 @@ func (beb *BestEffortBroadcast) Broadcast(message []byte) {
 
 func (beb *BestEffortBroadcast) handleConn(conn net.Conn) {
 	defer conn.Close()
+
+	beb.logger.Println("Received BEB message from ", conn.RemoteAddr().String())
 
 	rawData, err := ioutil.ReadAll(conn)
 	if err != nil {
