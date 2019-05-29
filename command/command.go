@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/alex-d-tc/distributed-systems-algorithms/beb"
-	"github.com/alex-d-tc/distributed-systems-algorithms/pfd"
+	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/beb"
+	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/pfd"
 	"github.com/alex-d-tc/distributed-systems-algorithms/protocol"
 )
 

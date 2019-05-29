@@ -7,10 +7,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/alex-d-tc/distributed-systems-algorithms/beb"
+	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/beb"
 	"github.com/alex-d-tc/distributed-systems-algorithms/command"
-	"github.com/alex-d-tc/distributed-systems-algorithms/environment"
-	"github.com/alex-d-tc/distributed-systems-algorithms/pfd"
+	"github.com/alex-d-tc/distributed-systems-algorithms/util/environment"
+	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/pfd"
 	"github.com/alex-d-tc/distributed-systems-algorithms/protocol"
 
 	"github.com/joho/godotenv"
