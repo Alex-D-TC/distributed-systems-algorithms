@@ -31,6 +31,7 @@ func main() {
 
 	logger.Println(env.GetBebPort())
 	logger.Println(env.GetControlPort())
+	logger.Println(env.GetHostname())
 	logger.Println(env.GetHosts())
 	logger.Println(env.GetONARPort())
 	logger.Println(env.GetPFDPort())

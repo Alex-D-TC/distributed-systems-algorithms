@@ -12,6 +12,8 @@ services:
     networks:
       dist-net:
         ipv4_address: 10.0.0.2
+    environment:
+      - HOSTNAME=10.0.0.2
     ports:
       - "0.0.0.0:41000:40000"
 
@@ -22,6 +24,8 @@ services:
     networks:
       dist-net:
         ipv4_address: 10.0.0.3
+    environment:
+      - HOSTNAME=10.0.0.3
     ports:
       - "0.0.0.0:41001:40000"
 
@@ -32,6 +36,8 @@ services:
     networks:
       dist-net:
         ipv4_address: 10.0.0.4
+    environment:
+      - HOSTNAME=10.0.0.4
     ports:
       - "0.0.0.0:41002:40000"
       
@@ -42,6 +48,8 @@ services:
     networks:
       dist-net:
         ipv4_address: 10.0.0.5
+    environment:
+      - HOSTNAME=10.0.0.5
     ports:
       - "0.0.0.0:41003:40000"
 

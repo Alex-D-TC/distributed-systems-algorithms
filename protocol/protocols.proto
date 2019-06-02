@@ -9,6 +9,11 @@ message HeartbeatReply {
 
 }
 
+message WireMessage {
+    uint64 nonce = 1;
+    bytes payload = 2;
+}
+
 message PFDMessage {
     oneof heartbeat_type {
         HeartbeatRequest request = 1;
@@ -18,4 +23,9 @@ message PFDMessage {
 
 message BEBMessage {
     bytes payload = 1;
+}
+
+message URBMessage {
+    bytes payload = 1;
+    string source = 2;
 }

@@ -9,6 +9,7 @@ import (
 )
 
 type NetworkEnvironment struct {
+	hostname 	string
 	hosts       []string
 	bebPort     uint16
 	onarPort    uint16
@@ -23,6 +24,11 @@ func NewNetworkEnvironment() (*NetworkEnvironment, error) {
 
 	// Validate environment variable data
 	errs := []string{}
+
+	hostname := os.Getenv("HOSTNAME")
+	if len(hostname) <= 0 {
+		errs = append(errs, "No HOSTNAME value supplied")
+	}
 
 	hosts := strings.Split(os.Getenv("HOSTS"), ";")
 
@@ -56,6 +62,7 @@ func NewNetworkEnvironment() (*NetworkEnvironment, error) {
 	}
 
 	return &NetworkEnvironment{
+		hostname:    hostname,
 		hosts:       hosts,
 		bebPort:     uint16(bebPort),
 		onarPort:    uint16(onarPort),
@@ -64,6 +71,10 @@ func NewNetworkEnvironment() (*NetworkEnvironment, error) {
 		controlPort: uint16(controlPort),
 		logger:      log.New(os.Stdout, "[Network Manager]", log.Ltime|log.Ldate),
 	}, nil
+}
+
+func (env *NetworkEnvironment) GetHostname() string {
+	return env.hostname
 }
 
 func (env *NetworkEnvironment) GetControlPort() uint16 {
