@@ -50,7 +50,7 @@ func (beb *BestEffortBroadcast) AddOnDeliverListener() <-chan BestEffortBroadcas
 }
 
 func (beb *BestEffortBroadcast) Broadcast(message []byte) {
-	
+
 	beb.logger.Println("Sending broadcast message ", message)
 
 	bebMessage := &protocol.BEBMessage{
@@ -63,7 +63,7 @@ func (beb *BestEffortBroadcast) Broadcast(message []byte) {
 	}
 
 	for _, host := range beb.hosts {
-		err, _ := util.SendMessage(host, beb.bebServicePort, rawBebMessage)
+		err := util.SendMessage(host, beb.bebServicePort, rawBebMessage)
 		if err != nil {
 			beb.logger.Println(err.Error())
 		}
@@ -81,15 +81,9 @@ func (beb *BestEffortBroadcast) handleConn(conn net.Conn) {
 		return
 	}
 
-	err, wireMessage := util.GetWireMessage(rawData)
-	if err != nil {
-		beb.logger.Printf("Error when decoding wire message: %s\n", err.Error())
-		return
-	}
-
 	bebMessage := &protocol.BEBMessage{}
 
-	err = proto.Unmarshal(wireMessage.GetPayload(), bebMessage)
+	err = proto.Unmarshal(rawData, bebMessage)
 	if err != nil {
 		beb.logger.Println(err.Error())
 		return

@@ -138,7 +138,7 @@ func (pfd *PerfectFailureDetector) pingLivingHosts() {
 
 	for _, host := range pfd.hosts {
 		if !pfd.dead[host] {
-			err, _ = util.SendMessage(host, pfd.servicePort, rawPfdMessage)
+			err = util.SendMessage(host, pfd.servicePort, rawPfdMessage)
 			if err != nil {
 				pfd.logger.Println(err.Error())
 			}
@@ -164,7 +164,7 @@ func (pfd *PerfectFailureDetector) onHeartbeatRequest(host string) {
 	}
 
 	// Reply with a heartbeat reply
-	err, _ = util.SendMessage(host, pfd.servicePort, raw)
+	err = util.SendMessage(host, pfd.servicePort, raw)
 	if err != nil {
 		pfd.logger.Println(err.Error())
 	}
@@ -192,16 +192,9 @@ func (pfd *PerfectFailureDetector) handleConnection(conn net.Conn) {
 		return
 	}
 
-	// Extract the wire message
-	err, wireMessage := util.GetWireMessage(rawData)
-	if err != nil {
-		pfd.logger.Printf("Error when decoding wire message: %s\n", err.Error())
-		return
-	}
-
 	pfdMessage := &protocol.PFDMessage{}
 
-	err = proto.Unmarshal(wireMessage.GetPayload(), pfdMessage)
+	err = proto.Unmarshal(rawData, pfdMessage)
 	if err != nil {
 		pfd.logger.Println(err.Error())
 		return

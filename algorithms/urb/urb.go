@@ -3,23 +3,27 @@ package urb
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"sort"
+	"sync"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 
 	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/beb"
 	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/pfd"
 	"github.com/alex-d-tc/distributed-systems-algorithms/protocol"
+	"github.com/alex-d-tc/distributed-systems-algorithms/util"
 	"github.com/alex-d-tc/distributed-systems-algorithms/util/environment"
 )
 
 type URB struct {
 	hostname         string
 	correctProcesses []string
-	delivered        map[int64]bool
-	pending          map[string]map[int64]protocol.URBMessage
-	ack              map[int64][]string
+	delivered        map[uint64]bool
+	pending          map[string]map[uint64]*protocol.URBMessage
+	ack              map[uint64][]string
 
 	onDeliver *onDeliverEventManager
 
@@ -30,20 +34,23 @@ type URB struct {
 	pfdOnProcessCrashedListener <-chan string
 
 	logger *log.Logger
+
+	mutationLock *sync.Mutex
 }
 
 func NewURB(env *environment.NetworkEnvironment, beb *beb.BestEffortBroadcast, pfd *pfd.PerfectFailureDetector) *URB {
 	urb := &URB{
 		hostname:  env.GetHostname(),
-		delivered: make(map[int64]bool),
-		pending:   make(map[string]map[int64]protocol.URBMessage),
-		ack:       make(map[int64][]string),
+		delivered: make(map[uint64]bool),
+		pending:   make(map[string]map[uint64]*protocol.URBMessage),
+		ack:       make(map[uint64][]string),
 		onDeliver: newOnDeliverEventManager(),
 
 		beb: beb,
 		pfd: pfd,
 
-		logger: log.New(os.Stdout, "[URB]", log.Ldate|log.Ltime),
+		logger:       log.New(os.Stdout, "[URB]", log.Ldate|log.Ltime),
+		mutationLock: &sync.Mutex{},
 	}
 
 	// Copy the processes list in the correctProcesses list
@@ -61,8 +68,114 @@ func NewURB(env *environment.NetworkEnvironment, beb *beb.BestEffortBroadcast, p
 	return urb
 }
 
-// checkCanDeliver evaluates whether all correct messages have ack-ed the particular message
-func (urb *URB) checkCanDeliver(msg int64) bool {
+func (urb *URB) Broadcast(message []byte) error {
+
+	// Prepare the URB Broadcast message
+	urbMsg := &protocol.URBMessage{
+		Source:  urb.hostname,
+		Payload: message,
+		Nonce:   uint64(rand.Int63n(time.Now().Unix())),
+	}
+
+	urb.mutationLock.Lock()
+	defer urb.mutationLock.Unlock()
+
+	// Add the message as pending
+	urb.pending[urbMsg.Source][urbMsg.Nonce] = urbMsg
+
+	rawMsg, err := proto.Marshal(urbMsg)
+	if err != nil {
+		return err
+	}
+
+	// BEB Broadcast the message to all parties
+	urb.beb.Broadcast(rawMsg)
+	return nil
+}
+
+func (urb *URB) handleBebDeliver() {
+
+	for {
+		bebMsg := <-urb.bebOnDeliverListener
+
+		// Get the underlying URB message
+		urbMsg := &protocol.URBMessage{}
+
+		err := proto.Unmarshal(bebMsg.Message, urbMsg)
+		if err != nil {
+			urb.logger.Printf("Error extracting URB message from BEB message: %s\n", err.Error())
+			continue
+		}
+
+		// Lock all internal state manipulation
+		urb.mutationLock.Lock()
+
+		// If the message is not ack-ed by this host, mark it as ack-ed
+		if !util.FindInStringSlice(urb.ack[urbMsg.GetNonce()], bebMsg.SourceHost) {
+			urb.ack[urbMsg.GetNonce()] = append(urb.ack[urbMsg.GetNonce()], bebMsg.SourceHost)
+		}
+
+		// If the message is not pending, mark it as pending and BEB broadcast it
+		if urb.pending[urbMsg.GetSource()][urbMsg.GetNonce()] == nil {
+			urb.pending[urbMsg.GetSource()][urbMsg.GetNonce()] = urbMsg
+			urb.beb.Broadcast(bebMsg.Message)
+		}
+
+		// Try to see if the message is now deliverable
+		urb.tryDelivering()
+
+		urb.mutationLock.Unlock()
+	}
+
+}
+
+func (urb *URB) handlePFDProcessCrashed() {
+
+	for {
+		host := <-urb.pfdOnProcessCrashedListener
+
+		corr := urb.correctProcesses
+
+		urb.logger.Println(fmt.Sprintf("Marking host %s as dead", host))
+
+		// Lock all internal state manipulation
+		urb.mutationLock.Lock()
+
+		// Remove process from the correct processes list
+		for i := 0; i < len(corr); i++ {
+			if corr[i] == host {
+				urb.correctProcesses[i] = urb.correctProcesses[len(urb.correctProcesses)-1]
+				urb.correctProcesses = urb.correctProcesses[:len(urb.correctProcesses)-1]
+				break
+			}
+		}
+
+		// Try to see if the message is now deliverable
+		urb.tryDelivering()
+
+		urb.mutationLock.Unlock()
+	}
+
+}
+
+func (urb *URB) tryDelivering() {
+
+	for _, pendingOfHost := range urb.pending {
+		for pendingMsg, pendingMsgData := range pendingOfHost {
+
+			// Deliver all messages which can be delivered and weren't already
+			if !urb.delivered[pendingMsg] && urb.checkCanDeliver(pendingMsg) {
+				urb.onDeliver.Submit(UrbDeliverEvent{
+					Source:  pendingMsgData.GetSource(),
+					Message: pendingMsgData.GetPayload(),
+				})
+			}
+		}
+	}
+}
+
+// checkCanDeliver evaluates whether all currently correct processes have ack-ed the particular message
+func (urb *URB) checkCanDeliver(msg uint64) bool {
 
 	sort.Strings(urb.ack[msg])
 	sort.Strings(urb.correctProcesses)
@@ -76,77 +189,4 @@ func (urb *URB) checkCanDeliver(msg int64) bool {
 	}
 
 	return iC == len(urb.correctProcesses)
-}
-
-func (urb *URB) tryDelivering() {
-
-	delivered := make([](struct {
-		string
-		int64
-	}), 0)
-
-	for host, pendingOfHost := range urb.pending {
-		for pendingMsg, pendingMsgData := range pendingOfHost {
-
-			if urb.checkCanDeliver(pendingMsg) {
-				// Deliver all messages which can be delivered
-				urb.onDeliver.Submit(UrbDeliverEvent{
-					Source:  pendingMsgData.GetSource(),
-					Message: pendingMsgData.GetPayload(),
-				})
-
-				delivered = append(delivered, struct {
-					string
-					int64
-				}{host, pendingMsg})
-			}
-		}
-	}
-
-	// Remove all delivered messages
-	for _, deliv := range delivered {
-		delete(urb.pending[deliv.string], deliv.int64)
-	}
-}
-
-func (urb *URB) Broadcast(message []byte) error {
-	// Prepare the URB Broadcast message
-	urbMsg := &protocol.URBMessage{
-		Source:  urb.hostname,
-		Payload: message,
-	}
-
-	rawMsg, err := proto.Marshal(urbMsg)
-	if err != nil {
-		return err
-	}
-
-	// BEB Broadcast the message to all parties
-	urb.Broadcast(rawMsg)
-	return nil
-}
-
-func (urb *URB) handleBebDeliver() {
-
-}
-
-func (urb *URB) handlePFDProcessCrashed() {
-
-	for {
-		host := <-urb.pfdOnProcessCrashedListener
-
-		corr := urb.correctProcesses
-
-		urb.logger.Println(fmt.Sprintf("Marking host %s as dead", host))
-
-		// Remove process from the correct processes list
-		for i := 0; i < len(corr); i++ {
-			if corr[i] == host {
-				urb.correctProcesses[i] = urb.correctProcesses[len(urb.correctProcesses)-1]
-				urb.correctProcesses = urb.correctProcesses[:len(urb.correctProcesses)-1]
-				break
-			}
-		}
-	}
-
 }

@@ -9,11 +9,6 @@ message HeartbeatReply {
 
 }
 
-message WireMessage {
-    uint64 nonce = 1;
-    bytes payload = 2;
-}
-
 message PFDMessage {
     oneof heartbeat_type {
         HeartbeatRequest request = 1;
@@ -28,4 +23,7 @@ message BEBMessage {
 message URBMessage {
     bytes payload = 1;
     string source = 2;
+
+    // The nonce is added to each message which needs to be unique
+    uint64 nonce = 3;
 }
