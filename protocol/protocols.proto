@@ -32,3 +32,8 @@ message ONARWriteMessage {
     uint64 timestamp = 1;
     int64 val = 2;
 }
+
+message UCProposalMessage {
+    uint32 round = 1;
+    repeated int64 proposalSet = 2;
+}
