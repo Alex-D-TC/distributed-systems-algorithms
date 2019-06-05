@@ -18,6 +18,7 @@ message PFDMessage {
 
 message BEBMessage {
     bytes payload = 1;
+    uint64 correlationID = 2;
 }
 
 message URBMessage {

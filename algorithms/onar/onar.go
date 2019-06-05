@@ -19,6 +19,8 @@ import (
 
 var ackBytes = [...]byte{0, 4, 5, 1}
 
+const correlationID = 1
+
 type ONAR struct {
 
 	// Algorithm-relevant data
@@ -105,7 +107,7 @@ func (onar *ONAR) Read() error {
 		return err
 	}
 
-	onar.beb.Broadcast(rawMsg)
+	onar.beb.Broadcast(correlationID, rawMsg)
 	return nil
 }
 
@@ -122,7 +124,7 @@ func (onar *ONAR) Write(val int64) error {
 		return err
 	}
 
-	onar.beb.Broadcast(rawMsg)
+	onar.beb.Broadcast(correlationID, rawMsg)
 	return nil
 }
 
@@ -178,7 +180,10 @@ func (onar *ONAR) handleBebDeliver() {
 	for {
 		bebMsg := <-onar.bebOnDeliverListener
 
-		onar.logger.Println("Received ONAR Write message")
+		// Ignore unintended messages
+		if bebMsg.CorrelationID != correlationID {
+			continue
+		}
 
 		// Get underlying ONARWriteMessage
 		onarMsg := &protocol.ONARWriteMessage{}
@@ -187,10 +192,7 @@ func (onar *ONAR) handleBebDeliver() {
 			continue
 		}
 
-		// Ignore malformed messages
-		if onarMsg.Timestamp == 0 {
-			continue
-		}
+		onar.logger.Println("Received ONAR Write message")
 
 		if onarMsg.GetTimestamp() > onar.timestamp {
 			onar.timestamp = onarMsg.GetTimestamp()

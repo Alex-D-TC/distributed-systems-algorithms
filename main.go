@@ -42,7 +42,7 @@ func main() {
 
 	// Startup the system
 	pfd := pfd.NewPerfectFailureDetector(env.GetPFDPort(), env.GetHosts(), 3*time.Second, 3)
-	beb := beb.NewBestEffortBroadcast(env.GetBebPort(), env.GetHosts())
+	beb := beb.NewBestEffortBroadcast(env.GetBebPort(), env.GetHosts(), pfd)
 	uc := uc.NewUniformConsensus(env, beb, pfd)
 	urb := urb.NewURB(env, beb, pfd)
 	onar := onar.NewONAR(env, beb, pfd)

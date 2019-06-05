@@ -18,6 +18,8 @@ import (
 	"github.com/alex-d-tc/distributed-systems-algorithms/util/environment"
 )
 
+const correlationID = 3
+
 type URB struct {
 	hostname         string
 	correctProcesses []string
@@ -98,7 +100,7 @@ func (urb *URB) Broadcast(message []byte) error {
 	}
 
 	// BEB Broadcast the message to all parties
-	urb.beb.Broadcast(rawMsg)
+	urb.beb.Broadcast(correlationID, rawMsg)
 	return nil
 }
 
@@ -106,6 +108,11 @@ func (urb *URB) handleBebDeliver() {
 
 	for {
 		bebMsg := <-urb.bebOnDeliverListener
+
+		// Skip unintended messages
+		if bebMsg.CorrelationID != correlationID {
+			continue
+		}
 
 		// Get the underlying URB message
 		urbMsg := &protocol.URBMessage{}
@@ -117,7 +124,7 @@ func (urb *URB) handleBebDeliver() {
 		}
 
 		// If the URB message has no values, ignore it
-		if len(urbMsg.GetSource()) == 0 {
+		if urb.pending[urbMsg.GetSource()] == nil {
 			continue
 		}
 
@@ -134,7 +141,7 @@ func (urb *URB) handleBebDeliver() {
 		// If the message is not pending, mark it as pending and BEB broadcast it
 		if urb.pending[urbMsg.GetSource()][urbMsg.GetNonce()] == nil {
 			urb.pending[urbMsg.GetSource()][urbMsg.GetNonce()] = urbMsg
-			urb.beb.Broadcast(bebMsg.Message)
+			urb.beb.Broadcast(correlationID, bebMsg.Message)
 		}
 
 		// Try to see if the message is now deliverable

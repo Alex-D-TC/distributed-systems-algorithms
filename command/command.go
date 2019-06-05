@@ -90,7 +90,7 @@ func (cm *CommandService) URBBroadcast(ctx context.Context, req *protocol.URBReq
 
 func (cm *CommandService) BEBBroadcast(ctx context.Context, req *protocol.BEBRequest) (*protocol.BEBConfirm, error) {
 	cm.log.Println("Received BEBBroadcast call", req)
-	cm.beb.Broadcast(req.GetMessage())
+	cm.beb.Broadcast(0, req.GetMessage())
 	return &protocol.BEBConfirm{
 		Result: &protocol.BEBConfirm_Ok{Ok: true},
 	}, nil

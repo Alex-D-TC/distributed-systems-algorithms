@@ -20,6 +20,8 @@ type cachedProposal struct {
 	proposal *protocol.UCProposalMessage
 }
 
+const correlationID = 2
+
 type UniformConsensus struct {
 
 	// Algorithm state
@@ -100,7 +102,7 @@ func (uc *UniformConsensus) Propose(val int64) error {
 		return err
 	}
 
-	uc.beb.Broadcast(proposalMsgRaw)
+	uc.beb.Broadcast(correlationID, proposalMsgRaw)
 
 	uc.logger.Printf("Proposed value %d. Awaiting other proposals\n", val)
 
@@ -111,6 +113,10 @@ func (uc *UniformConsensus) handleBebDeliver() {
 
 	for {
 		bebMsg := <-uc.bebOnDeliverListener
+
+		if bebMsg.CorrelationID != correlationID {
+			continue
+		}
 
 		// Wait for any state changes to occur before accepting any other beb requests
 		uc.stateLock.Lock()
@@ -215,7 +221,7 @@ func (uc *UniformConsensus) tryDelivering() {
 			return
 		}
 
-		uc.beb.Broadcast(proposalMsgRaw)
+		uc.beb.Broadcast(correlationID, proposalMsgRaw)
 	}
 }
 

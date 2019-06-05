@@ -5,7 +5,9 @@ import (
 	"log"
 	"net"
 	"os"
+	"sync"
 
+	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/pfd"
 	"github.com/alex-d-tc/distributed-systems-algorithms/protocol"
 	"github.com/golang/protobuf/proto"
 
@@ -13,8 +15,9 @@ import (
 )
 
 type BestEffortBroadcastMessage struct {
-	SourceHost string
-	Message    []byte
+	SourceHost    string
+	CorrelationID uint64
+	Message       []byte
 }
 
 type BestEffortBroadcast struct {
@@ -26,20 +29,28 @@ type BestEffortBroadcast struct {
 	// Outgoing event handlers
 	deliverManager *onDeliverManager
 
+	onHostDownListener <-chan string
+
 	// Logging
 	logger *log.Logger
+
+	stateLock *sync.Mutex
 }
 
-func NewBestEffortBroadcast(bebServicePort uint16, hosts []string) *BestEffortBroadcast {
+func NewBestEffortBroadcast(bebServicePort uint16, hosts []string, pfd *pfd.PerfectFailureDetector) *BestEffortBroadcast {
 
 	beb := &BestEffortBroadcast{
 		hosts:          hosts,
 		bebServicePort: bebServicePort,
 		logger:         log.New(os.Stdout, "[BEB]", log.Ldate|log.Ltime),
 		deliverManager: newOnDeliverManager(),
+		stateLock:      &sync.Mutex{},
 	}
 
+	beb.onHostDownListener = pfd.AddOnProcessCrashedListener()
+
 	// Run the server routine
+	go beb.handleHostDown()
 	go util.Listen(beb.bebServicePort, beb.handleConn, beb.logger)
 
 	return beb
@@ -49,12 +60,16 @@ func (beb *BestEffortBroadcast) AddOnDeliverListener() <-chan BestEffortBroadcas
 	return beb.deliverManager.AddListener()
 }
 
-func (beb *BestEffortBroadcast) Broadcast(message []byte) {
+func (beb *BestEffortBroadcast) Broadcast(correlationID uint64, message []byte) {
 
 	beb.logger.Println("Sending broadcast message ", message)
 
+	beb.stateLock.Lock()
+	defer beb.stateLock.Unlock()
+
 	bebMessage := &protocol.BEBMessage{
-		Payload: message,
+		CorrelationID: correlationID,
+		Payload:       message,
 	}
 
 	rawBebMessage, err := proto.Marshal(bebMessage)
@@ -67,6 +82,23 @@ func (beb *BestEffortBroadcast) Broadcast(message []byte) {
 		if err != nil {
 			beb.logger.Println(err.Error())
 		}
+	}
+}
+
+func (beb *BestEffortBroadcast) handleHostDown() {
+	for {
+		downHost := <-beb.onHostDownListener
+
+		beb.stateLock.Lock()
+		for i, host := range beb.hosts {
+			if host == downHost {
+				beb.hosts[i] = beb.hosts[len(beb.hosts)-1]
+				beb.hosts = beb.hosts[:len(beb.hosts)-1]
+				break
+			}
+		}
+
+		beb.stateLock.Unlock()
 	}
 }
 
@@ -97,8 +129,9 @@ func (beb *BestEffortBroadcast) handleConn(conn net.Conn) {
 func (beb *BestEffortBroadcast) handleMessage(sourceHost string, bebMessage *protocol.BEBMessage) {
 
 	msg := BestEffortBroadcastMessage{
-		SourceHost: sourceHost,
-		Message:    bebMessage.GetPayload(),
+		SourceHost:    sourceHost,
+		CorrelationID: bebMessage.GetCorrelationID(),
+		Message:       bebMessage.GetPayload(),
 	}
 
 	beb.deliverManager.Submit(msg)
