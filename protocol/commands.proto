@@ -20,7 +20,19 @@ message BEBConfirm {
     }
 }
 
+message UCRequest {
+    int64 value = 1;
+}
+
+message UCReply {
+    oneof result {
+        Error error = 1;
+        bool ok = 2;
+    }
+}
+
 service ControlService {
+    rpc UCProposal(UCRequest) returns (UCReply);
     rpc BEBBroadcast(BEBRequest) returns (BEBConfirm);
     rpc MarcoPolo(Empty) returns (Empty);
 }

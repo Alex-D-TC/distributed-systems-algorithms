@@ -1,4 +1,4 @@
-package urb;
+package urb
 
 import (
 	"log"
@@ -8,14 +8,14 @@ import (
 )
 
 type UrbDeliverEvent struct {
-	Source string
+	Source  string
 	Message []byte
 }
 
 type onDeliverEventManager struct {
 
 	// Listener internal state
-	listeners []chan<-UrbDeliverEvent
+	listeners []chan<- UrbDeliverEvent
 
 	// Internal event handler
 	internalHandler util.EventHandler
@@ -26,8 +26,8 @@ type onDeliverEventManager struct {
 
 func newOnDeliverEventManager() *onDeliverEventManager {
 	manager := &onDeliverEventManager{
-		listeners: make([]chan<-UrbDeliverEvent, 0),
-		logger: log.New(os.Stdout, "[URBOnDeliverManager]", log.Ldate|log.Ltime),
+		listeners: make([]chan<- UrbDeliverEvent, 0),
+		logger:    log.New(os.Stdout, "[URBOnDeliverManager]", log.Ldate|log.Ltime),
 	}
 
 	manager.internalHandler = util.NewEventHandler(manager.handleSubmit)
@@ -38,7 +38,7 @@ func newOnDeliverEventManager() *onDeliverEventManager {
 func (manager *onDeliverEventManager) AddListener() <-chan UrbDeliverEvent {
 
 	listener := make(chan UrbDeliverEvent, 1)
-	manager.internalHandler.Submit(listener)
+	manager.internalHandler.Submit((chan<- UrbDeliverEvent)(listener))
 
 	return listener
 }
@@ -50,14 +50,14 @@ func (manager *onDeliverEventManager) Submit(event UrbDeliverEvent) {
 func (manager *onDeliverEventManager) handleSubmit(ev interface{}) {
 
 	switch ev.(type) {
-	case chan UrbDeliverEvent:
+	case chan<- UrbDeliverEvent:
 		manager.logger.Println("Added a listener")
-		manager.listeners = append(manager.listeners, ev.(chan<-UrbDeliverEvent))
+		manager.listeners = append(manager.listeners, ev.(chan<- UrbDeliverEvent))
 		break
 	case UrbDeliverEvent:
 		manager.logger.Println("Delivering URB message")
 		for _, listener := range manager.listeners {
-			listener<-ev.(UrbDeliverEvent)
+			listener <- ev.(UrbDeliverEvent)
 		}
 		break
 	}

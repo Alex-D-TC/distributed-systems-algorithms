@@ -8,10 +8,11 @@ import (
 	"time"
 
 	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/beb"
-	"github.com/alex-d-tc/distributed-systems-algorithms/command"
-	"github.com/alex-d-tc/distributed-systems-algorithms/util/environment"
 	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/pfd"
+	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/uc"
+	"github.com/alex-d-tc/distributed-systems-algorithms/command"
 	"github.com/alex-d-tc/distributed-systems-algorithms/protocol"
+	"github.com/alex-d-tc/distributed-systems-algorithms/util/environment"
 
 	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
@@ -36,25 +37,27 @@ func main() {
 	logger.Println(env.GetONARPort())
 	logger.Println(env.GetPFDPort())
 	logger.Println(env.GetUCPort())
-	
+
 	// Startup the system
-	fd := pfd.NewPerfectFailureDetector(env.GetPFDPort(), env.GetHosts(), 3*time.Second, 3)
+	pfd := pfd.NewPerfectFailureDetector(env.GetPFDPort(), env.GetHosts(), 3*time.Second, 3)
 
 	beb := beb.NewBestEffortBroadcast(env.GetBebPort(), env.GetHosts())
 
-	go commandListener(env.GetControlPort(), logger, fd, beb)
+	uc := uc.NewUniformConsensus(env, beb, pfd)
 
-	bebListener := beb.AddOnDeliverListener()
+	go commandListener(env.GetControlPort(), logger, pfd, beb, uc)
+
+	ucListener := uc.AddOnDecidedListener()
 
 	// Wait forever for now
 	for {
 		logger.Println("Awaiting broadcasts")
-		broadcast := <-bebListener
-		logger.Println("Received broadcast: ", broadcast)
+		decision := <-ucListener
+		logger.Println("Received UC decision: ", decision)
 	}
 }
 
-func commandListener(controlPort uint16, logger *log.Logger, fd *pfd.PerfectFailureDetector, beb *beb.BestEffortBroadcast) {
+func commandListener(controlPort uint16, logger *log.Logger, pfd *pfd.PerfectFailureDetector, beb *beb.BestEffortBroadcast, uc *uc.UniformConsensus) {
 	logger.Println("Starting command listener")
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", controlPort))
@@ -62,7 +65,7 @@ func commandListener(controlPort uint16, logger *log.Logger, fd *pfd.PerfectFail
 		logger.Fatal(err.Error())
 	}
 
-	commandService := command.NewCommandService(beb, fd)
+	commandService := command.NewCommandService(beb, pfd, uc)
 
 	server := grpc.NewServer()
 	protocol.RegisterControlServiceServer(server, commandService)

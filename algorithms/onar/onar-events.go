@@ -33,7 +33,7 @@ func NewOnReadReturnManager() *onReadReturnManager {
 
 func (manager *onReadReturnManager) handleMessage(ev interface{}) {
 	switch ev.(type) {
-	case chan ReadReturn:
+	case chan<- ReadReturn:
 		manager.listeners = append(manager.listeners, ev.(chan<- ReadReturn))
 		break
 	case ReadReturn:
@@ -45,7 +45,7 @@ func (manager *onReadReturnManager) handleMessage(ev interface{}) {
 
 func (manager *onReadReturnManager) AddListener() <-chan ReadReturn {
 	listener := make(chan ReadReturn, 1)
-	manager.internalHandler.Submit(listener)
+	manager.internalHandler.Submit((chan<- ReadReturn)(listener))
 	return listener
 }
 
@@ -78,7 +78,7 @@ func NewOnWriteReturnManager() *onWriteReturnManager {
 
 func (manager *onWriteReturnManager) handleMessage(ev interface{}) {
 	switch ev.(type) {
-	case chan WriteReturn:
+	case chan<- WriteReturn:
 		manager.listeners = append(manager.listeners, ev.(chan<- WriteReturn))
 		break
 	case WriteReturn:
@@ -90,7 +90,7 @@ func (manager *onWriteReturnManager) handleMessage(ev interface{}) {
 
 func (manager *onWriteReturnManager) AddListener() <-chan WriteReturn {
 	listener := make(chan WriteReturn, 1)
-	manager.internalHandler.Submit(listener)
+	manager.internalHandler.Submit((chan<- WriteReturn)(listener))
 	return listener
 }
 

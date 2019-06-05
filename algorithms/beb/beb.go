@@ -91,7 +91,7 @@ func (beb *BestEffortBroadcast) handleConn(conn net.Conn) {
 
 	addr := conn.RemoteAddr().(*net.TCPAddr)
 
-	beb.handleMessage(addr.String(), bebMessage)
+	beb.handleMessage(addr.IP.String(), bebMessage)
 }
 
 func (beb *BestEffortBroadcast) handleMessage(sourceHost string, bebMessage *protocol.BEBMessage) {

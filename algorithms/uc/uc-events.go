@@ -35,7 +35,7 @@ func newOnDecidedManager() *onDecidedManager {
 func (manager *onDecidedManager) AddListener() <-chan UniformConsensusDecision {
 
 	listener := make(chan UniformConsensusDecision, 1)
-	manager.internalHandler.Submit(listener)
+	manager.internalHandler.Submit((chan<- UniformConsensusDecision)(listener))
 
 	return listener
 }
@@ -46,7 +46,7 @@ func (manager *onDecidedManager) Submit(message UniformConsensusDecision) {
 
 func (manager *onDecidedManager) handleEvent(ev interface{}) {
 	switch ev.(type) {
-	case chan UniformConsensusDecision:
+	case chan<- UniformConsensusDecision:
 		manager.logger.Println("Added listener")
 		manager.listeners = append(manager.listeners, ev.(chan<- UniformConsensusDecision))
 		break
