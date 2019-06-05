@@ -124,6 +124,12 @@ func (uc *UniformConsensus) handleBebDeliver() {
 			continue
 		}
 
+		if len(proposeMsg.ProposalSet) == 0 {
+			// Ignore malformed messages
+			uc.stateLock.Unlock()
+			continue
+		}
+
 		early := uc.processMessage(bebMsg.SourceHost, proposeMsg)
 		if early {
 			// Store the early bird for later use

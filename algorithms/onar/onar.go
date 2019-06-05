@@ -17,7 +17,7 @@ import (
 	"github.com/alex-d-tc/distributed-systems-algorithms/util/environment"
 )
 
-var ackBytes = [...]byte{0, 8, 3}
+var ackBytes = [...]byte{0, 4, 5, 1}
 
 type ONAR struct {
 
@@ -57,7 +57,7 @@ func NewONAR(env *environment.NetworkEnvironment, beb *beb.BestEffortBroadcast, 
 		onarPort:         env.GetONARPort(),
 		beb:              beb,
 		pfd:              pfd,
-		timestamp:        0,
+		timestamp:        1,
 		val:              0,
 		correctProcesses: env.GetHosts(),
 		writeset:         make(map[string]bool, 0),
@@ -79,7 +79,18 @@ func NewONAR(env *environment.NetworkEnvironment, beb *beb.BestEffortBroadcast, 
 	return onar
 }
 
+func (onar *ONAR) AddOnWriteReturnListener() <-chan WriteReturn {
+	return onar.onWriteReturn.AddListener()
+}
+
+func (onar *ONAR) AddOnReadReturnListener() <-chan ReadReturn {
+	return onar.onReadReturn.AddListener()
+}
+
 func (onar *ONAR) Read() error {
+
+	onar.logger.Println("Attempting to read data")
+
 	onar.reading = true
 	onar.readval = onar.val
 
@@ -118,6 +129,8 @@ func (onar *ONAR) Write(val int64) error {
 func (onar *ONAR) handleAckMessage(conn net.Conn) {
 
 	defer conn.Close()
+
+	onar.logger.Println("Received ack message from host: ", conn.RemoteAddr().(*net.TCPAddr).IP.String())
 
 	ack, err := ioutil.ReadAll(conn)
 	if err != nil {
@@ -165,10 +178,17 @@ func (onar *ONAR) handleBebDeliver() {
 	for {
 		bebMsg := <-onar.bebOnDeliverListener
 
+		onar.logger.Println("Received ONAR Write message")
+
 		// Get underlying ONARWriteMessage
 		onarMsg := &protocol.ONARWriteMessage{}
 		err := proto.Unmarshal(bebMsg.Message, onarMsg)
 		if err != nil {
+			continue
+		}
+
+		// Ignore malformed messages
+		if onarMsg.Timestamp == 0 {
 			continue
 		}
 

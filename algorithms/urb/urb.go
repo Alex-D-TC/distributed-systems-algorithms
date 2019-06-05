@@ -116,6 +116,13 @@ func (urb *URB) handleBebDeliver() {
 			continue
 		}
 
+		// If the URB message has no values, ignore it
+		if len(urbMsg.GetSource()) == 0 {
+			continue
+		}
+
+		urb.logger.Println("Received URB message: ", urbMsg.GetSource())
+
 		// Lock all internal state manipulation
 		urb.mutationLock.Lock()
 

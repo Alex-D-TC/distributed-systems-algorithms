@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/beb"
+	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/onar"
 	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/pfd"
 	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/uc"
 	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/urb"
@@ -13,22 +14,60 @@ import (
 )
 
 type CommandService struct {
-	log *log.Logger
-	beb *beb.BestEffortBroadcast
-	pfd *pfd.PerfectFailureDetector
-	uc  *uc.UniformConsensus
-	urb *urb.URB
+	log  *log.Logger
+	beb  *beb.BestEffortBroadcast
+	pfd  *pfd.PerfectFailureDetector
+	uc   *uc.UniformConsensus
+	urb  *urb.URB
+	onar *onar.ONAR
 }
 
-func NewCommandService(beb *beb.BestEffortBroadcast, pfd *pfd.PerfectFailureDetector, uc *uc.UniformConsensus, urb *urb.URB) *CommandService {
+func NewCommandService(beb *beb.BestEffortBroadcast, pfd *pfd.PerfectFailureDetector, uc *uc.UniformConsensus, urb *urb.URB, onar *onar.ONAR) *CommandService {
 
 	return &CommandService{
-		log: log.New(os.Stdout, "[CommandService]", log.Ldate|log.Ltime),
-		beb: beb,
-		pfd: pfd,
-		uc:  uc,
-		urb: urb,
+		log:  log.New(os.Stdout, "[CommandService]", log.Ldate|log.Ltime),
+		beb:  beb,
+		pfd:  pfd,
+		uc:   uc,
+		urb:  urb,
+		onar: onar,
 	}
+}
+
+func (cm *CommandService) ONARRead(ctx context.Context, req *protocol.ONARReadRequest) (*protocol.ONARReadReply, error) {
+	cm.log.Println("Received ONAR read command")
+	err := cm.onar.Read()
+	if err != nil {
+		return &protocol.ONARReadReply{
+			Result: &protocol.ONARReadReply_Error{
+				Error: &protocol.Error{
+					Error: err.Error(),
+				},
+			},
+		}, nil
+	}
+
+	return &protocol.ONARReadReply{
+		Result: &protocol.ONARReadReply_Ok{Ok: true},
+	}, nil
+}
+
+func (cm *CommandService) ONARWrite(ctx context.Context, req *protocol.ONARWriteRequest) (*protocol.ONARWriteReply, error) {
+	cm.log.Println("Received ONAR write command ", req)
+	err := cm.onar.Write(req.Value)
+	if err != nil {
+		return &protocol.ONARWriteReply{
+			Result: &protocol.ONARWriteReply_Error{
+				Error: &protocol.Error{
+					Error: err.Error(),
+				},
+			},
+		}, nil
+	}
+
+	return &protocol.ONARWriteReply{
+		Result: &protocol.ONARWriteReply_Ok{Ok: true},
+	}, nil
 }
 
 func (cm *CommandService) URBBroadcast(ctx context.Context, req *protocol.URBRequest) (*protocol.URBReply, error) {

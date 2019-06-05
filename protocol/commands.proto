@@ -42,7 +42,31 @@ message URBReply {
     }
 }
 
+message ONARWriteRequest {
+    int64 value = 1;
+}
+
+message ONARWriteReply {
+    oneof result {
+        Error error = 1;
+        bool ok = 2;
+    }
+}
+
+message ONARReadRequest {
+
+}
+
+message ONARReadReply {
+    oneof result {
+        Error error = 1;
+        bool ok = 2;
+    }
+}
+
 service ControlService {
+    rpc ONARWrite(ONARWriteRequest) returns (ONARWriteReply);
+    rpc ONARRead(ONARReadRequest) returns (ONARReadReply);
     rpc URBBroadcast(URBRequest) returns (URBReply);
     rpc UCProposal(UCRequest) returns (UCReply);
     rpc BEBBroadcast(BEBRequest) returns (BEBConfirm);
