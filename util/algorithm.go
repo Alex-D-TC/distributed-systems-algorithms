@@ -6,7 +6,7 @@ func MinimumKeyValueOfMap(m *map[int64]bool) int64 {
 	var min int64
 
 	for k := range *m {
-		if !hasMin || k < min {
+		if (*m)[k] && (!hasMin || k < min) {
 			min = k
 		}
 	}
