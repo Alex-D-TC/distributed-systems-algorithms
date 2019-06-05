@@ -10,6 +10,7 @@ import (
 	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/beb"
 	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/pfd"
 	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/uc"
+	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/urb"
 	"github.com/alex-d-tc/distributed-systems-algorithms/command"
 	"github.com/alex-d-tc/distributed-systems-algorithms/protocol"
 	"github.com/alex-d-tc/distributed-systems-algorithms/util/environment"
@@ -40,24 +41,31 @@ func main() {
 
 	// Startup the system
 	pfd := pfd.NewPerfectFailureDetector(env.GetPFDPort(), env.GetHosts(), 3*time.Second, 3)
-
 	beb := beb.NewBestEffortBroadcast(env.GetBebPort(), env.GetHosts())
-
 	uc := uc.NewUniformConsensus(env, beb, pfd)
+	urb := urb.NewURB(env, beb, pfd)
 
-	go commandListener(env.GetControlPort(), logger, pfd, beb, uc)
+	go commandListener(env.GetControlPort(), logger, pfd, beb, uc, urb)
 
 	ucListener := uc.AddOnDecidedListener()
+	urbListener := urb.AddOnDeliverListener()
 
 	// Wait forever for now
 	for {
-		logger.Println("Awaiting broadcasts")
-		decision := <-ucListener
-		logger.Println("Received UC decision: ", decision)
+		logger.Println("Awaiting events")
+
+		select {
+		case decision := <-ucListener:
+			logger.Println("Received UC decision: ", decision)
+			break
+		case urbMessage := <-urbListener:
+			logger.Println("Received URB broadcast: ", urbMessage)
+			break
+		}
 	}
 }
 
-func commandListener(controlPort uint16, logger *log.Logger, pfd *pfd.PerfectFailureDetector, beb *beb.BestEffortBroadcast, uc *uc.UniformConsensus) {
+func commandListener(controlPort uint16, logger *log.Logger, pfd *pfd.PerfectFailureDetector, beb *beb.BestEffortBroadcast, uc *uc.UniformConsensus, urb *urb.URB) {
 	logger.Println("Starting command listener")
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", controlPort))
@@ -65,7 +73,7 @@ func commandListener(controlPort uint16, logger *log.Logger, pfd *pfd.PerfectFai
 		logger.Fatal(err.Error())
 	}
 
-	commandService := command.NewCommandService(beb, pfd, uc)
+	commandService := command.NewCommandService(beb, pfd, uc, urb)
 
 	server := grpc.NewServer()
 	protocol.RegisterControlServiceServer(server, commandService)

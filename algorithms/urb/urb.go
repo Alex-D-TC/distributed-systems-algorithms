@@ -59,6 +59,11 @@ func NewURB(env *environment.NetworkEnvironment, beb *beb.BestEffortBroadcast, p
 		urb.correctProcesses = append(urb.correctProcesses, host)
 	}
 
+	// Init the pending map
+	for _, src := range env.GetHosts() {
+		urb.pending[src] = make(map[uint64]*protocol.URBMessage, 0)
+	}
+
 	urb.bebOnDeliverListener = beb.AddOnDeliverListener()
 	urb.pfdOnProcessCrashedListener = pfd.AddOnProcessCrashedListener()
 
@@ -66,6 +71,10 @@ func NewURB(env *environment.NetworkEnvironment, beb *beb.BestEffortBroadcast, p
 	go urb.handlePFDProcessCrashed()
 
 	return urb
+}
+
+func (urb *URB) AddOnDeliverListener() <-chan UrbDeliverEvent {
+	return urb.onDeliver.AddListener()
 }
 
 func (urb *URB) Broadcast(message []byte) error {

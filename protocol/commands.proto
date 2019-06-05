@@ -31,7 +31,19 @@ message UCReply {
     }
 }
 
+message URBRequest {
+    bytes data = 1;
+}
+
+message URBReply {
+    oneof result {
+        Error error = 1;
+        bool ok = 2;
+    }
+}
+
 service ControlService {
+    rpc URBBroadcast(URBRequest) returns (URBReply);
     rpc UCProposal(UCRequest) returns (UCReply);
     rpc BEBBroadcast(BEBRequest) returns (BEBConfirm);
     rpc MarcoPolo(Empty) returns (Empty);

@@ -8,6 +8,7 @@ import (
 	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/beb"
 	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/pfd"
 	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/uc"
+	"github.com/alex-d-tc/distributed-systems-algorithms/algorithms/urb"
 	"github.com/alex-d-tc/distributed-systems-algorithms/protocol"
 )
 
@@ -16,16 +17,36 @@ type CommandService struct {
 	beb *beb.BestEffortBroadcast
 	pfd *pfd.PerfectFailureDetector
 	uc  *uc.UniformConsensus
+	urb *urb.URB
 }
 
-func NewCommandService(beb *beb.BestEffortBroadcast, pfd *pfd.PerfectFailureDetector, uc *uc.UniformConsensus) *CommandService {
+func NewCommandService(beb *beb.BestEffortBroadcast, pfd *pfd.PerfectFailureDetector, uc *uc.UniformConsensus, urb *urb.URB) *CommandService {
 
 	return &CommandService{
 		log: log.New(os.Stdout, "[CommandService]", log.Ldate|log.Ltime),
 		beb: beb,
 		pfd: pfd,
 		uc:  uc,
+		urb: urb,
 	}
+}
+
+func (cm *CommandService) URBBroadcast(ctx context.Context, req *protocol.URBRequest) (*protocol.URBReply, error) {
+	cm.log.Println("Received URBBroadcast call", req)
+	err := cm.urb.Broadcast(req.Data)
+	if err != nil {
+		return &protocol.URBReply{
+			Result: &protocol.URBReply_Error{
+				Error: &protocol.Error{
+					Error: err.Error(),
+				},
+			},
+		}, nil
+	}
+
+	return &protocol.URBReply{
+		Result: &protocol.URBReply_Ok{Ok: true},
+	}, nil
 }
 
 func (cm *CommandService) BEBBroadcast(ctx context.Context, req *protocol.BEBRequest) (*protocol.BEBConfirm, error) {
